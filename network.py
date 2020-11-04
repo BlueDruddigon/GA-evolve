@@ -3,10 +3,9 @@
 '''
 
 import random
-import logging
 from train import train_and_score
 
-class Network():
+class Network:
     '''
     Represent a network and let us operate on it
 
@@ -56,11 +55,3 @@ class Network():
 
         if self.accuracy == 0.:
             self.accuracy = train_and_score(self.network, dataset)
-
-    def print_network(self):
-        '''
-        Print out a network
-        '''
-
-        logging.info(self.network)
-        logging.info('Network accuracy: %.2f%%' % (self.accuracy * 100))
