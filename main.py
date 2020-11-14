@@ -9,9 +9,10 @@ def main():
     population = 20
 
     params = {
-        'nb_neurons': [128, 256, 512, 1024],
-        'nb_layers': [3, 4, 5],
-        'activation': ['relu', 'sigmoid', 'tanh', 'elu'],
+        # 'nb_neurons': [128, 256, 512, 1024],
+        'nb_neurons': [(20, 50)],
+        # 'nb_layers': [3, 4, 5],
+        # 'activation': ['relu', 'sigmoid', 'tanh', 'elu'],
         'optimizer': ['adam', 'rmsprop', 'sgd', 'nadam', 'adagrad', 'adadelta', 'adamax']
     }
 

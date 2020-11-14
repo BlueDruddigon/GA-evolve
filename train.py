@@ -1,6 +1,5 @@
-from keras.datasets import mnist, cifar10
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Input, Conv2D, MaxPooling2D, Flatten, concatenate
 from keras.utils.np_utils import to_categorical
 from keras.callbacks import EarlyStopping
 
@@ -13,21 +12,20 @@ NB_CLASSES = 228
 EPOCHS = 60
 PERMISSION_SIZE = 30
 API_SIZE = 32
+DENSE_UNITS = 1024
 
 def get_dataset(path):
     '''
         Retrieve our dataset from the given path
     '''
     # train data
-    train_df = pd.read_csv('train-9.csv', header=None, skiprows=1)
+    train_df = pd.read_csv(path + '/train-9.csv', header=None, skiprows=1)
     train_y = np.array(train_df.iloc[:, 2])
     train_per = np.array(train_df.iloc[:, 3:880])
     train_per = np.concatenate((train_per, np.zeros((train_per.shape[0], 23))), 1)
-    print(train_per.shape)
 
     train_api = np.array(train_df.iloc[:, 880:])
     train_api = np.concatenate((train_api, np.zeros((train_api.shape[0], 67))), 1)
-    print(train_api.shape)
 
     unique, counts = np.unique(train_y, return_counts=True)
 
@@ -39,7 +37,7 @@ def get_dataset(path):
     train_api /= 255
 
     # validation data
-    val_df = pd.read_csv('file-9.csv', header=None, skiprows=1)
+    val_df = pd.read_csv(path + '/file-9.csv', header=None, skiprows=1)
     val_y = np.array(val_df.iloc[:, 2])
     val_per = np.array(val_df.iloc[:, 3:880])
     val_per = np.concatenate((val_per, np.zeros((val_per.shape[0], 23))), 1)
@@ -57,7 +55,7 @@ def get_dataset(path):
     val_api /= 255
 
     # test data
-    test_df = pd.read_csv('file-0.csv', header=None, skiprows=1)
+    test_df = pd.read_csv(path + '/file-0.csv', header=None, skiprows=1)
     test_y = np.array(test_df.iloc[:, 2])
     test_per = np.array(test_df.iloc[:, 3:880])
     test_per = np.concatenate((test_per, np.zeros((test_per.shape[0], 23))), 1)
@@ -96,40 +94,72 @@ def compile_model(network):
     '''
     # Get our network parameters
     nb_layers = network['nb_layers']
-    nb_neurons = network['nb_neurons']
-    activation = network['activation']
+    # nb_neurons = network['nb_neurons']
+    # activation = network['activation']
     optimizer = network['optimizer']
 
-    per_input = Input(shape=(PERMISSION_SIZE, PERMISSION_SIZE, 1))
-    per_conv = Conv2D(nb_neurons, (2, 2), padding='same', activation=activation, input_shape=(PERMISSION_SIZE, PERMISSION_SIZE, 1))(per_input)
-    per_pool = MaxPooling2D((2, 2), strides=2)(per_conv)
-    for i in range(2, nb_layers):
-        i //= 2
-        per_conv = Conv2D(nb_neurons * (2 ** i), (2, 2), padding='same', activation=activation)(per_pool)
-        per_pool = MaxPooling2D((2, 2), strides=2)(per_conv)
+    # per_input = Input(shape=(PERMISSION_SIZE, PERMISSION_SIZE, 1))
+    # per_conv = Conv2D(nb_neurons, (2, 2), padding='same', activation=activation, input_shape=(PERMISSION_SIZE, PERMISSION_SIZE, 1))(per_input)
+    # per_pool = MaxPooling2D((2, 2), strides=2)(per_conv)
+    # for i in range(2, nb_layers):
+    #     i //= 2
+    #     per_conv = Conv2D(nb_neurons * (2 ** i), (2, 2), padding='same', activation=activation)(per_pool)
+    #     per_pool = MaxPooling2D((2, 2), strides=2)(per_conv)
   
-    per_flatten = Flatten()(per_pool)
-    per_dense = Dense(nb_neurons * nb_layers, activation='relu')(per_flatten)
-    per_output = Dense(NB_CLASSES, activation='softmax')(per_dense)
-    per_model = Model(inputs=per_input, outputs=per_output)
+    # per_flatten = Flatten()(per_pool)
+    # per_dense = Dense(nb_neurons * nb_layers, activation='relu')(per_flatten)
+    # per_output = Dense(NB_CLASSES, activation='softmax')(per_dense)
+    # per_model = Model(inputs=per_input, outputs=per_output)
+
+    # api_input = Input(shape=(API_SIZE, API_SIZE, 1))
+    # api_conv = Conv2D(nb_neurons, (2, 2), padding='same', activation=activation, input_shape=(API_SIZE, API_SIZE, 1))(api_input)
+    # api_pool = MaxPooling2D((2, 2), strides=2)(api_conv)
+    # for i in range(2, nb_layers):
+    #     i //= 2
+    #     api_conv = Conv2D(nb_neurons * (2 ** i), (2, 2), padding='same', activation=activation)(api_pool)
+    #     api_pool = MaxPooling2D((2, 2), strides=2)(api_conv)
+  
+    # api_flatten = Flatten()(api_pool)
+    # api_dense = Dense(nb_neurons * nb_layers, activation=activation)(api_flatten)
+    # api_output = Dense(NB_CLASSES, activation='softmax')(api_dense)
+    # api_model = Model(inputs=api_input, outputs=api_output)
+
+    # combined = concatenate([per_model.output, api_model.output])
+
+    # combined_output = Dense(NB_CLASSES, activation='softmax')(combined)
+    # model = Model(inputs=[per_model.input, api_model.input], outputs=combined_output)
+
+    per_input = Input(shape=(PERMISSION_SIZE, PERMISSION_SIZE, 1))
+    per_layer = per_input
+    for idx, kernels in enumerate(nb_neurons):
+        per_layer = Conv2D(kernels, kernel_size=(5, 5), strides=(1, 1), padding='same')(per_layer)
+        per_layer = Activation('relu')(per_layer)
+
+        per_layer = Conv2D(kernels, kernel_size=(3, 3), strides=(1, 1), padding='same')(per_layer)
+        per_layer = Activation('relu')(per_layer)
+
+        per_layer = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(per_layer)
+    
+    per_layer = Flatten()(per_layer)
 
     api_input = Input(shape=(API_SIZE, API_SIZE, 1))
-    api_conv = Conv2D(nb_neurons, (2, 2), padding='same', activation=activation, input_shape=(API_SIZE, API_SIZE, 1))(api_input)
-    api_pool = MaxPooling2D((2, 2), strides=2)(api_conv)
-    for i in range(2, nb_layers):
-        i //= 2
-        api_conv = Conv2D(nb_neurons * (2 ** i), (2, 2), padding='same', activation=activation)(api_pool)
-        api_pool = MaxPooling2D((2, 2), strides=2)(api_conv)
-  
-    api_flatten = Flatten()(api_pool)
-    api_dense = Dense(nb_neurons * nb_layers, activation=activation)(api_flatten)
-    api_output = Dense(NB_CLASSES, activation='softmax')(api_dense)
-    api_model = Model(inputs=api_input, outputs=api_output)
+    api_layer = api_input
+    for idx, kernels in enumerate(nb_neurons):
+        api_layer = Conv2D(kernels, kernel_size=(5, 5), strides=(1, 1), padding='same')(api_layer)
+        api_layer = Activation('relu')(api_layer)
 
-    combined = concatenate([per_model.output, api_model.output])
+        api_layer = Conv2D(kernels, kernel_size=(3, 3), strides=(1, 1), padding='same')(api_layer)
+        api_layer = Activation('relu')(api_layer)
 
-    combined_output = Dense(NB_CLASSES, activation='softmax')(combined)
-    model = Model(inputs=[per_model.input, api_model.input], outputs=combined_output)
+        api_layer = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(api_layer)
+    
+    api_layer = Flatten()(api_input)
+
+    output = concatenate([per_layer, api_layer], axis=1)
+    output = Dense(DENSE_UNITS, activation='relu')(output)
+    output = Dropout(0.5)(output)
+    output = Dense(NB_CLASSES, activation='softmax')(output)
+    model = Model(inputs=[per_input, api_input], outputs=output)
 
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,
